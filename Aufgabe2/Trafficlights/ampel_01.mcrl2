@@ -1,0 +1,44 @@
+
+% Definition der Richtungen
+
+sort 
+	CardinalDirection = struct north | east | south | west;
+	
+% Definition der Farben
+
+sort 
+	Colour = struct red | yellow | green;
+
+map 
+	nextColour: Colour -> Colour;  % Der Wert des nextColour als Colour deklariert
+	
+	% Initialisierung die Werte der deklarierten Colourstypen
+	
+eqn
+	nextColour(red) = green;
+	nextColour(green) = yellow;
+	nextColour(yellow) = red;
+
+	
+%Definition der Aktionen und Prozesse
+
+act
+	show: CardinalDirection # Colour;
+	
+	% Es wird immer durch eine Farbe die nächste Farbe gebracht
+
+proc
+	TrafficLight(dir : CardinalDirection, colour : Colour) = 
+		show(dir,colour).TrafficLight(colour = nextColour(colour))
+ 	;
+	
+	% TrafficLight Prozesse laufen parallel, und werden auf Red initialisiert
+
+	CrossRoad =
+		(TrafficLight(north, red) || TrafficLight(east, red) || TrafficLight(south, red) || TrafficLight(west, red))
+	;
+
+% Es wird mit dem Prozess CrossRoad begonnen
+
+init
+	CrossRoad;

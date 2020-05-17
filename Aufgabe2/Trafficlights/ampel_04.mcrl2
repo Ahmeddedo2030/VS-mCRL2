@@ -1,0 +1,84 @@
+
+   % Definition der Richtungen
+
+sort 
+	CardinalDirection = struct north | east | south | west;
+	
+
+	% Definition der Farben
+
+sort 
+	Colour = struct red | yellow | green;
+
+map 
+	nextColour: Colour -> Colour;   % Der Wert des nextColour als Colour deklariert
+	
+	
+	% Initialisierung die Werte der deklarierten Colourstypen
+eqn
+	nextColour(red) = green;
+	nextColour(green) = yellow;
+	nextColour(yellow) = red;
+
+map
+	oppSide: CardinalDirection -> CardinalDirection;    % Der Wert des oppSide als CardinalDirection deklariert
+	nextSide: CardinalDirection -> CardinalDirection;   % Der Wert des nextSide als CardinalDirection deklariert
+	
+	
+	% Initialisierung die Werte der deklarierten oppSide und nextSide
+	
+eqn
+	oppSide(north) = south;
+	oppSide(east) = west;
+	oppSide(south) = north;
+	oppSide(west) = east;
+	nextSide(north) = east;
+	nextSide(east) = south;
+	nextSide(south) = west;
+	nextSide(west) = north;
+
+
+	% Definition der Aktionen und Prozesse
+	
+act
+	show: CardinalDirection # Colour;
+
+	sync: Set(CardinalDirection) # Colour;
+	synced: Set(CardinalDirection) # Colour;
+
+	signal: CardinalDirection;
+	wait: CardinalDirection;
+	notify: CardinalDirection;
+
+	
+	% Die Ampeln werden gegenseitig synchronisiert,und die unsichere Kombinationen von Ampelwerten werden vermieden
+	% Nord-Süd Richtungen werden mit der ersten Grünphase anfangen
+
+proc
+	TrafficLight(_dir : CardinalDirection) =
+		(_dir == east) -> (wait(_dir).TrafficLight(_colour = red))
+		<> (_dir == west) -> (wait(_dir).TrafficLight(_colour = red))
+		<> TrafficLight(_colour = red);
+
+	TrafficLight(_dir : CardinalDirection, _colour : Colour) =
+		show(_dir,_colour).sync({_dir,oppSide(_dir)},_colour)
+		.(_colour == red) -> (
+		signal(nextSide(_dir)).wait(_dir).TrafficLight(_colour = nextColour(_colour)))
+		<> (TrafficLight(_colour = nextColour(_colour)));
+				
+	
+	% TrafficLight Prozesse laufen parallel, und werden auf Colour Red initialisiert
+	% synced und notify Aktionen werden mit hide verschwunden
+	% Die Aktionen synced,notify und show sind nur zulässig
+	% Die zwei Aktionen sync werden zusammen verbunden und in multi-Prozesse TrafficLight und mit der Aktion synced kommunizieren
+	% Die Aktionen signal und wait werden zusammen verbunden und in multi-Prozesse TrafficLight mit der Aktion notify kommunizieren
+
+init
+	hide({synced, notify},
+		allow({show, synced, notify},
+			comm({sync|sync -> synced, signal|wait -> notify},
+				TrafficLight(north)||TrafficLight(south)||TrafficLight(east)||TrafficLight(west)
+			)
+		)
+	)
+	;
